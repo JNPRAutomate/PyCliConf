@@ -174,7 +174,8 @@ class CliConf():
         """
         :template: A templated string using Jinja2 templates
         :template_vars: A dict containing the vars used in the :template: string
-        :type: The type of configuration to load. The default is "text" or a standard Junos config block. Other options are: "set" for set style commands, "xml" for xml configs
+        :cfg_format: The type of configuration to load. The default is "text" or a standard Junos config block. Other options are: "set" for set style commands, "xml" for xml configs
+        :action: Configurtion action. The default is "merge".
 
         Uses standard `Jinja2`_ Templating.
 
@@ -183,14 +184,14 @@ class CliConf():
         Example:
 
         .. code-block:: python
-
             from pyCliConf import CliConf
 
-            config_template = "system { host-name {{ hostname }}; }"
+            config_template = "system { host-name {{ hostname }}-{{ suffix }}; }"
+            config_vars = {"hostname": "foo", "suffix": "bah"}
 
             dev = CliConf()
-            dev.load_config_template(config_template,hostname="foo")
-            dev commit()
+            dev.load_config_template(config_template, config_vars)
+            dev.commit()
             dev.close()
         """
         try:
