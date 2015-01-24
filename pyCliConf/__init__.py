@@ -2,8 +2,10 @@
 
 .. moduleauthor:: Rob Cameron <rcameron@juniper.net>
 """
- from . import version
+from . import version
 
- __version__ = version.VERSION
- __date__ = version.DATE
- __all__ = ["pyCliConf"]
+__version__ = version.VERSION
+__date__ = version.DATE
+__all__ = ["CliConf"]
+
+from pyCliConf import CliConf
