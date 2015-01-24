@@ -41,7 +41,7 @@ class CliConf():
         try:
             self.session = subprocess.Popen(['/usr/sbin/cli', 'xml-mode', 'netconf'], stdin=subprocess.PIPE, stdout=subprocess.PIPE)
         except Exception as err:
-            print "RPC Session Error: %r" % err
+            print "RPC Session Error: %r \n\t Are you on Junos?\n" % err
 
         try:
             self.session.communicate(rpc)
@@ -79,7 +79,7 @@ class CliConf():
             print "RPC Commit Error: %r" % err
 
 
-    def load_config(self, config_file, action=" ", cfg_format="text"):
+    def load_config(self, cfg_string=False, url=False, cfg_format="text", action="merge"):
         """
         Loads Junos configuration from a URL or file location
 
@@ -101,18 +101,110 @@ class CliConf():
                 dev.load_config(config_file = "/var/tmp/set.cfg", action = "set")
 
         """
-        if action == "set":
-            action = ' action = "set" '
+        try:
+            cfg_string
+            url
+        except Exception as err:
+            print "Error: load_config needs either 'cfg_string' or 'url' defined: %r" % err
+
+        if action == "set" or cfg_format == "set":
+            action_string = ' action = "set" '
             cfg_format = "text"
+        elif action in  ['merge', 'overide', 'replace', 'update']:
+            action_string = ' action = "%s" ' % action
+        else:
+            raise Exception("RPC Load Error - Unknown action type")
 
         rpc_load_url = """
         <rpc> 
             <load-configuration url="%s"%sformat="%s" />
         </rpc>
         ]]>]]>
-        """ % (config_file, action, cfg_format)
+        """ % (url, action_string, cfg_format)
+
+        rpc_load_text_string = """
+           <rpc> 
+            <load-configuration "%sformat="text">
+                <configuration-text>
+                    %s
+                </configuration-text>
+            </load-configuration>
+        </rpc>
+        ]]>]]>
+        """ % (action_string, cfg_string)
+
+        rpc_load_set_string = """
+           <rpc> 
+            <load-configuration "%sformat="text">
+                <configuration-set>
+                    %s
+                </configuration-set>
+            </load-configuration>
+        </rpc>
+        ]]>]]>
+        """ % (action_string, cfg_string)
+
+        rpc_load_string = """
+           <rpc> 
+            <load-configuration "%sformat="xml">
+                <configuration>
+                    %s
+                </configuration>
+            </load-configuration>
+        </rpc>
+        ]]>]]>
+        """ % (action_string, cfg_string)
+
+        if url:
+            rpc_send = rpc_load_url
+        elif action == "set" or cfg_format == "set":
+            rpc_send = rpc_load_set_string
+        elif cfg_format == "text":
+            rpc_send = rpc_load_text_string
+        elif cfg_form == "xml":
+            rpc_send = rpc_load_string
 
         try:
-            self.rpc(rpc_load_url)
+            print rpc_send
+            self.rpc(rpc_send)
         except Exception as err:
             print "RPC Load Error: %r" % err
+
+    def load_config_template(self, template, template_vars, cfg_format="text", action="merge"):
+        """
+        :template: A templated string using Jinja2 templates
+        :template_vars: A dict containing the vars used in the :template: string
+        :type: The type of configuration to load. The default is "text" or a standard Junos config block. Other options are: "set" for set style commands, "xml" for xml configs
+
+        Uses standard `Jinja2`_ Templating.
+
+        .. _`Jinja2`: http://jinja.pocoo.org/
+
+        Example:
+
+        .. code-block:: python
+
+            from pyCliConf import CliConf
+
+            config_template = "system { host-name {{ hostname }}; }"
+
+            dev = CliConf()
+            dev.load_config_template(config_template,hostname="foo")
+            dev commit()
+            dev.close()
+        """
+        try:
+            new_template = Template(template)
+        except Exception as err:
+            print "Load_Template New Error: %r" % err
+
+        try:
+            final_template = new_template.render(template_vars)
+            print final_template
+        except Exception as err:
+            print "Load_Template Render Error: %r" % err
+
+        try:
+            self.load_config(cfg_string=final_template, cfg_format=cfg_format,  action=action)
+        except Exception as err:
+            print "RPC Load_Template Send Error: %r" % err
