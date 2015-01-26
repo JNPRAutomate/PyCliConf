@@ -1,4 +1,7 @@
 import pyCliConf
+import inspect
 
 def main():
-    print "I make code for you!"
+    print inspect.getsourcelines(pyCliConf.CliConf)
+
+main()
