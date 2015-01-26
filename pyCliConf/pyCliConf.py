@@ -173,7 +173,7 @@ class CliConf():
             rpc_send = rpc_load_set_string
         elif cfg_format == "text":
             rpc_send = rpc_load_text_string
-        elif cfg_form == "xml":
+        elif cfg_format == "xml":
             rpc_send = rpc_load_string
 
         try:
