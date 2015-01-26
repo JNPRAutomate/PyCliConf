@@ -28,26 +28,6 @@ class CliConf():
     def __init__(self):
         self.session = " "
 
-    def rpc(self, rpc):
-        """
-        Opens a NETCONF session via CLI session and sends RPC.
-
-        Primarily used by other methods.
-
-        Args:
-            :rpc: string containing properly structured NETCONF RPC
-
-        """
-        try:
-            self.session = subprocess.Popen(['/usr/sbin/cli', 'xml-mode', 'netconf'], stdin=subprocess.PIPE, stdout=subprocess.PIPE)
-        except Exception as err:
-            print "RPC Session Error: %r \n\t Are you on Junos?\n" % err
-
-        try:
-            self.session.communicate(rpc)
-        except Exception as err:
-            print "RPC Communication Error: %r" % err
-
     def close(self):
         """
         Close a NETCONF session.
@@ -73,11 +53,80 @@ class CliConf():
         </rpc>
         ]]>]]>
         """
+
         try:
             self.rpc(rpc_commit)
         except Exception as err:
             print "RPC Commit Error: %r" % err
 
+    def install_package(self, url, no_copy=True, no_validate=True, unlink = True, reboot=False):
+        """
+        Install Junos package onto the system.
+
+        The primary use case is for performing Junos upgrades during the
+        ZTP process, though any package should work.
+
+        NOTE: "reboot" is set by default to "False", to ensure you do not
+        surprise yourself.
+
+        Args:
+            :url: string containing Junos standard URL scheme:
+                - File path (eg /var/tmp/config.cfg)
+                - FTP (eg ftp://username:password@hostname/path/filename)
+                - HTTP (eg http://username:password@hostname/path/filename)
+            :no_copy: Defaults to True
+            :no_validate: Defaults to True
+            :unlink: Defaults to True
+            :reboot: Defaults to False
+
+        Example:
+
+        .. code-block:: python
+        from pyCliConf import CliConf
+
+        dev = CliConf()
+        dev.install_package("http://172.32.32.254/jinstall-X.Y.tgz", reboot=True)
+        dev.close()
+        """
+        if no_copy:
+            rpc_package_nocopy = "<no-copy/>"
+        else:
+            rpc_package_nocopy = ""
+        if no_validate:
+            rpc_package_novalidate = "<no-validate/>"
+        else:
+            rpc_package_novalidate = ""
+        if unlink:
+            rpc_package_unlink = "<unlink/>"
+        else:
+            rpc_package_unlink = ""
+        if reboot:
+            rpc_package_reboot = "<reboot/>"
+        else:
+            rpc_package_reboot = ""
+
+        rpc_package = """
+            <rpc>
+               <request-package-add>
+                <package-name>
+                    %s
+                </package-name>
+                 %s
+                 %s
+                 %s
+                 %s
+               </request-package-add>
+            </rpc>
+            ]]>]]>
+        """ % (url, rpc_package_nocopy, rpc_package_novalidate, rpc_package_unlink, rpc_package_reboot)
+
+        rpc_send = rpc_package
+
+        try:
+            print rpc_send
+            self.rpc(rpc_send)
+        except Exception as err:
+            print "Install Package Error: %r" % err
 
     def load_config(self, cfg_string=False, url=False, cfg_format="text", action="merge"):
         """
@@ -222,75 +271,6 @@ class CliConf():
         except Exception as err:
             print "RPC Load_Template Send Error: %r" % err
 
-    def install_package(self, url, no_copy=True, no_validate=True, unlink = True, reboot=False):
-        """
-        Install Junos package onto the system.
-
-        The primary use case is for performing Junos upgrades during the
-        ZTP process, though any package should work.
-
-        NOTE: "reboot" is set by default to "False", to ensure you do not
-        surprise yourself.
-
-        Args:
-            :url: string containing Junos standard URL scheme:
-                - File path (eg /var/tmp/config.cfg)
-                - FTP (eg ftp://username:password@hostname/path/filename)
-                - HTTP (eg http://username:password@hostname/path/filename)
-            :no_copy: Defaults to True
-            :no_validate: Defaults to True
-            :unlink: Defaults to True
-            :reboot: Defaults to False
-
-        Example:
-
-        .. code-block:: python
-        from pyCliConf import CliConf
-
-        dev = CliConf()
-        dev.install_package("http://172.32.32.254/jinstall-X.Y.tgz", reboot=True)
-        dev.close()
-        """
-        if no_copy:
-            rpc_package_nocopy = "<no-copy/>"
-        else:
-            rpc_package_nocopy = ""
-        if no_validate:
-            rpc_package_novalidate = "<no-validate/>"
-        else:
-            rpc_package_novalidate = ""
-        if unlink:
-            rpc_package_unlink = "<unlink/>"
-        else:
-            rpc_package_unlink = ""
-        if reboot:
-            rpc_package_reboot = "<reboot/>"
-        else:
-            rpc_package_reboot = ""
-
-        rpc_package = """
-            <rpc>
-               <request-package-add>
-                <package-name>
-                    %s
-                </package-name>
-                 %s
-                 %s
-                 %s
-                 %s
-               </request-package-add>
-            </rpc>
-            ]]>]]>
-        """ % (url, rpc_package_nocopy, rpc_package_novalidate, rpc_package_unlink, rpc_package_reboot)
-
-        rpc_send = rpc_package
-
-        try:
-            print rpc_send
-            self.rpc(rpc_send)
-        except Exception as err:
-            print "Install Package Error: %r" % err
-
     def reboot(self):
         """
         Reboot the device.
@@ -306,3 +286,26 @@ class CliConf():
             self.rpc(rpc_reboot)
         except Exception as err:
             print "RPC Reboot Error: %r" % err
+
+    def rpc(self, rpc):
+        """
+        Opens a NETCONF session via CLI session and sends RPC.
+
+        Primarily used by other methods.
+
+        Args:
+            :rpc: string containing properly structured NETCONF RPC
+
+        """
+
+        # TODO: Need to implement code to catch <rpc-reply> and basic checks
+
+        try:
+            self.session = subprocess.Popen(['/usr/sbin/cli', 'xml-mode', 'netconf'], stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+        except Exception as err:
+            print "RPC Session Error: %r \n\t Are you on Junos?\n" % err
+
+        try:
+            self.session.communicate(rpc)
+        except Exception as err:
+            print "RPC Communication Error: %r" % err\
