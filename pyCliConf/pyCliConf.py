@@ -290,3 +290,19 @@ class CliConf():
             self.rpc(rpc_send)
         except Exception as err:
             print "Install Package Error: %r" % err
+
+    def reboot(self):
+        """
+        Reboot the device.
+        """
+        rpc_reboot = """
+        <rpc>
+            <request-reboot>
+            </request-reboot>
+        </rpc>
+        ]]>]]>
+        """
+        try:
+            self.rpc(rpc_reboot)
+        except Exception as err:
+            print "RPC Reboot Error: %r" % err

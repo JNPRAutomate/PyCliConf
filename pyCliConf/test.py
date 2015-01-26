@@ -2,7 +2,7 @@ from pyCliConf import CliConf
 
 print "Testing Config: Set from Local File\n\n"
 dev = CliConf()
-dev.load_config(url = "/var/tmp/set.cfg", action = "set")
+dev.load_config(url = "/var/root/set.cfg", action = "set")
 dev.commit()
 dev.close()
 
@@ -14,7 +14,7 @@ dev.close()
 
 print "Testing Config: Set from String\n\n"
 dev = CliConf()
-dev.load_config(cfg_string="set system host-name set-string", action = "set")
+dev.load_config(cfg_string="set system ntp server 10.0.0.3", action = "set")
 dev.commit()
 dev.close()
 
@@ -32,5 +32,12 @@ dev.close()
 print "\n\nTesting Package Install: Junos from HTTP\n\n"
 dev = CliConf()
 dev.install_package("http://172.32.32.254/jinstall-qfx-5-flex-14.1X53-D15.2-domestic-signed.tgz", reboot=True)
+dev.close()
+"""
+
+# Disable reboot test again to protect us from surprises!
+"""
+dev = CliConf()
+dev.reboot()
 dev.close()
 """
