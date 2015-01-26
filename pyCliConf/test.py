@@ -12,6 +12,12 @@ dev.load_config(url = "http://172.32.32.254/ztp-set.cfg", action = "set")
 dev.commit()
 dev.close()
 
+print "Testing Config: Set from String\n\n"
+dev = CliConf()
+dev.load_config(cfg_string="set system host-name set-string", action = "set")
+dev.commit()
+dev.close()
+
 print "\n\nTesting Config: Template String + Dict\n\n"
 config_template = "system { host-name {{ hostname }}-{{ suffix }}; }"
 config_vars = {"hostname": "foo", "suffix": "bah"}

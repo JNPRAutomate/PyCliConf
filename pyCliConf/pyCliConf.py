@@ -136,7 +136,7 @@ class CliConf():
 
         rpc_load_text_string = """
            <rpc> 
-            <load-configuration "%sformat="text">
+            <load-configuration%sformat="text">
                 <configuration-text>
                     %s
                 </configuration-text>
@@ -147,7 +147,7 @@ class CliConf():
 
         rpc_load_set_string = """
            <rpc> 
-            <load-configuration "%sformat="text">
+            <load-configuration%sformat="text">
                 <configuration-set>
                     %s
                 </configuration-set>
@@ -158,7 +158,7 @@ class CliConf():
 
         rpc_load_string = """
            <rpc> 
-            <load-configuration "%sformat="xml">
+            <load-configuration%sformat="xml">
                 <configuration>
                     %s
                 </configuration>
