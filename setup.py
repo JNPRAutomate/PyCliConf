@@ -23,6 +23,9 @@ setup(
     author_email='rcameron@juniper.net',
     packages=['pyCliConf'],
     include_package_data=True,
+    entry_points = {
+        'console_scripts' : ['cliconf=pyCliConf.command_line:main'],
+    }
     classifiers=[
         'License :: OSI Approved :: Apache Software License',
         'Operating System :: OS Independent',
