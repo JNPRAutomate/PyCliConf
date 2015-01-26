@@ -84,10 +84,22 @@ class CliConf():
         Loads Junos configuration from a URL or file location
 
         Args:
-            :config_file: string containing Junos standard URL scheme:
+            :cfg_string: string containing valid Junos configuration syntax
+            :url: string containing Junos standard URL scheme:
                 - File path (eg /var/tmp/config.cfg)
                 - FTP (eg ftp://username:password@hostname/path/filename)
                 - HTTP (eg http://username:password@hostname/path/filename)
+            :cfg_format: string containing format of config url or cfg_string
+                - "text" (eg Junos { } format)
+                - "xml" (eg XML structured format)
+                - "set" (eg "set system host-name foo")
+            :action: string telling Junos how to implement new configuration 
+            in relation to existing configuration on the device.
+                - 'set'
+                - 'merge'
+                - 'overide'
+                - 'replace'
+                - 'update'
 
         Examples:
 
@@ -209,3 +221,72 @@ class CliConf():
             self.load_config(cfg_string=final_template, cfg_format=cfg_format,  action=action)
         except Exception as err:
             print "RPC Load_Template Send Error: %r" % err
+
+    def install_package(self, url, no_copy=True, no_validate=True, unlink = True, reboot=False):
+        """
+        Install Junos package onto the system.
+
+        The primary use case is for performing Junos upgrades during the
+        ZTP process, though any package should work.
+
+        NOTE: "reboot" is set by default to "False", to ensure you do not
+        surprise yourself.
+
+        Args:
+            :url: string containing Junos standard URL scheme:
+                - File path (eg /var/tmp/config.cfg)
+                - FTP (eg ftp://username:password@hostname/path/filename)
+                - HTTP (eg http://username:password@hostname/path/filename)
+            :no_copy: Defaults to True
+            :no_validate: Defaults to True
+            :unlink: Defaults to True
+            :reboot: Defaults to False
+
+        Example:
+
+        .. code-block:: python
+        from pyCliConf import CliConf
+
+        dev = CliConf()
+        dev.install_package("http://172.32.32.254/jinstall-X.Y.tgz", reboot=True)
+        dev.close()
+        """
+        if no_copy:
+            rpc_package_nocopy = "<no-copy/>"
+        else:
+            rpc_package_nocopy = ""
+        if no_validate:
+            rpc_package_novalidate = "<no-validate/>"
+        else:
+            rpc_package_novalidate = ""
+        if unlink:
+            rpc_package_unlink = "<unlink/>"
+        else:
+            rpc_package_unlink = ""
+        if reboot:
+            rpc_package_reboot = "<reboot/>"
+        else:
+            rpc_package_reboot = ""
+
+        rpc_package = """
+            <rpc>
+               <request-package-add>
+                <package-name>
+                    %s
+                </package-name>
+                 %s
+                 %s
+                 %s
+                 %s
+               </request-package-add>
+            </rpc>
+            ]]>]]>
+        """ % (url, rpc_package_nocopy, rpc_package_novalidate, rpc_package_unlink, rpc_package_reboot)
+
+        rpc_send = rpc_package
+
+        try:
+            print rpc_send
+            self.rpc(rpc_send)
+        except Exception as err:
+            print "Install Package Error: %r" % err

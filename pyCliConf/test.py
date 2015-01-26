@@ -13,3 +13,12 @@ dev = CliConf()
 dev.load_config_template(config_template, config_vars)
 dev.commit()
 dev.close()
+
+# This next case causes the switch to reboot, so only uncomment when ready to test this case.
+# Initial tests by Kurt worked, but further testing and use cases needed
+"""
+print "\n\nTesting Package Install: Junos from HTTP\n\n"
+dev = CliConf()
+dev.install_package("http://172.32.32.254/jinstall-qfx-5-flex-14.1X53-D15.2-domestic-signed.tgz", reboot=True)
+dev.close()
+"""
