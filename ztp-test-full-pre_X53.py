@@ -1,5 +1,8 @@
+#!/usr/bin/python -tt
+
 import subprocess
-from jinja2 import Template
+
+from datetime import datetime
 
 class CliConf():
     """
@@ -53,7 +56,6 @@ class CliConf():
         </rpc>
         ]]>]]>
         """
-
         try:
             self.rpc(rpc_commit)
         except Exception as err:
@@ -231,52 +233,6 @@ class CliConf():
         except Exception as err:
             print "RPC Load Error: %r" % err
 
-    def load_config_template(self, template, template_vars, cfg_format="text", action="merge"):
-        """
-        Load Configuration from Jinja2 Template File
-        
-        NOTE: This function only supported on 14.1X53 onwards.
-        Not supported on 13.2X51-D25 from factory, so this method should
-        be deleted from switches booting this code.
-
-        :template: A templated string using Jinja2 templates
-        :template_vars: A dict containing the vars used in the :template: string
-        :cfg_format: The type of configuration to load. The default is "text" or a standard Junos config block. Other options are: "set" for set style commands, "xml" for xml configs
-        :action: Configurtion action. The default is "merge".
-
-        Uses standard `Jinja2`_ Templating.
-
-        .. _`Jinja2`: http://jinja.pocoo.org/
-
-        Example:
-
-        .. code-block:: python
-            from pyCliConf import CliConf
-
-            config_template = "system { host-name {{ hostname }}-{{ suffix }}; }"
-            config_vars = {"hostname": "foo", "suffix": "bah"}
-
-            dev = CliConf()
-            dev.load_config_template(config_template, config_vars)
-            dev.commit()
-            dev.close()
-        """
-        try:
-            new_template = Template(template)
-        except Exception as err:
-            print "Load_Template New Error: %r" % err
-
-        try:
-            final_template = new_template.render(template_vars)
-            print final_template
-        except Exception as err:
-            print "Load_Template Render Error: %r" % err
-
-        try:
-            self.load_config(cfg_string=final_template, cfg_format=cfg_format,  action=action)
-        except Exception as err:
-            print "RPC Load_Template Send Error: %r" % err
-
     def reboot(self):
         """
         Reboot the device.
@@ -303,9 +259,6 @@ class CliConf():
             :rpc: string containing properly structured NETCONF RPC
 
         """
-
-        # TODO: Need to implement code to catch <rpc-reply> and basic checks
-
         try:
             self.session = subprocess.Popen(['/usr/sbin/cli', 'xml-mode', 'netconf'], stdin=subprocess.PIPE, stdout=subprocess.PIPE)
         except Exception as err:
@@ -315,3 +268,50 @@ class CliConf():
             self.session.communicate(rpc)
         except Exception as err:
             print "RPC Communication Error: %r" % err\
+
+
+##############################################################################
+#                                                                            #
+#                            Start Unique Code                               #
+#                                                                            #
+##############################################################################
+
+logfile = "/var/root/ztp-log.txt"
+
+def time():
+    return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+def date():
+    return datetime.now().strftime("%Y-%m-%d")
+
+def log(msg, logfile = logfile):
+    log_time = time()
+    try:
+        logfile = open(logfile, "a")
+        logfile.write(str(log_time) + ": " + msg + "\n")
+        logfile.close()
+        print "%s\n" % msg
+    except Exception as err:
+        print "Error logging: %r" % err
+
+JUNOS_INSTALL = "http://172.32.32.254/jinstall-qfx-5-flex-14.1X53-D15.2-domestic-signed.tgz"
+
+NEW_CONFIG = """
+delete chassis auto-image-upgrade
+set system root-authentication encrypted-password "$1$e/sfN/6e$OuvCNcutoPYkl8S19xh/Q/"
+
+set system ntp server 1.1.1.1
+set system services netconf ssh
+
+set system host-name ztp-provision-complete
+"""
+
+dev = CliConf()
+
+log("Loading configuration file")
+dev.load_config(cfg_string = NEW_CONFIG, action = "set")
+dev.commit()
+
+log("Upgrading Junos version")
+#dev.install_package(JUNOS_INSTALL, reboot = True)
+dev.close()
