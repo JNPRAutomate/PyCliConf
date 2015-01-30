@@ -14,15 +14,18 @@ else:
 
 setup(
     name='pyCliConf',
-    version=pyJunosManager.__version__,
+    version=pyCliConf.__version__,
     description='An Junos on-box Python helper library to do very minimal bootstrapping of your Junos device. Primarily for Zero Touch Provisioning (ZTP) use cases.',
-    url='https://github.com/JNPRAutomate/pyJunosManager',
+    url='https://github.com/JNPRAutomate/pyCliConf',
     license='Apache 2.0',
     author='Rob Cameron',
     install_requires=[],
     author_email='rcameron@juniper.net',
     packages=['pyCliConf'],
     include_package_data=True,
+    entry_points = {
+        'console_scripts' : ['cliconf=pyCliConf.command_line:main'],
+    },
     classifiers=[
         'License :: OSI Approved :: Apache Software License',
         'Operating System :: OS Independent',
