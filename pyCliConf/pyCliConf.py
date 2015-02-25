@@ -1,5 +1,13 @@
 import subprocess
-from jinja2 import Template
+
+from datetime import datetime
+
+# Jijna2 is not supported until Junos 14.1X53, so catch exception on versions without this library.
+try:
+    from jinja2 import Template
+    JINJA_SUPPORT = True
+except:
+    JINJA_SUPPORT = False
 
 class CliConf():
     """
@@ -10,7 +18,8 @@ class CliConf():
     images.
 
     Args:
-        None (yet)
+        :Debug: Ensure log() method prints output to stdout and logfile. Defaults to False, and all log() output only goes to logfile.
+        :logfile: Destination logfile for log() method. Defaults to "/var/root/ztp-log.txt" as this is a persistant writable location during ZTP.
 
     Examples:
 
@@ -24,9 +33,18 @@ class CliConf():
         dev.load_config(config_file = "/var/tmp/set.cfg", action = "set")
         dev.commit()
         dev.close()
+
+    NOTE: When committing configuration with this script, please ensure that "chassis auto-image-upgrade" is in the configuration, otherwise "Auto Image Upgrade" process will exit and mark the script as a failure.
     """
-    def __init__(self):
+    def __init__(self, logfile="/var/root/ztp-log.txt", Debug=False):
         self.session = " "
+        self.logfile = open(logfile, "a", 0)
+        self.debug = Debug
+
+        try:
+            self.session = subprocess.Popen(['/usr/sbin/cli', 'xml-mode', 'netconf'], stdin=subprocess.PIPE, stdout=self.logfile, stderr=self.logfile)
+        except Exception as err:
+            print "RPC Session Error: %r \n\t Are you on Junos?\n" % err
 
     def close(self):
         """
@@ -41,11 +59,19 @@ class CliConf():
         try:
             self.rpc(rpc_close)
         except Exception as err:
-            print "RPC Close Error: %r" % err
+            errmsg = "RPC Close Error: %r" % err
+            self.log(errmsg)
+        try:
+            self.logfile.close()
+        except Exception as err:
+            errmsg = "Error closing logfile: %r" % err
+            self.log(errmsg)
 
     def commit(self):
         """
         Commit current candidate configuration
+
+        NOTE: When committing configuration with this script, please ensure that "chassis auto-image-upgrade" is in the configuration, otherwise "Auto Image Upgrade" process will exit and mark the script as a failure.
         """
         rpc_commit = """
         <rpc>
@@ -53,11 +79,11 @@ class CliConf():
         </rpc>
         ]]>]]>
         """
-
         try:
             self.rpc(rpc_commit)
         except Exception as err:
-            print "RPC Commit Error: %r" % err
+            errmsg = "RPC Commit Error: %r" % err
+            self.log(errmsg)
 
     def install_package(self, url, no_copy=True, no_validate=True, unlink = True, reboot=False):
         """
@@ -123,10 +149,10 @@ class CliConf():
         rpc_send = rpc_package
 
         try:
-            print rpc_send
             self.rpc(rpc_send)
         except Exception as err:
-            print "Install Package Error: %r" % err
+            errmsg = "Install Package Error: %r" % err
+            self.log(errmsg)
 
     def load_config(self, cfg_string=False, url=False, cfg_format="text", action="merge"):
         """
@@ -161,12 +187,14 @@ class CliConf():
                 dev = CliConf()
                 dev.load_config(config_file = "/var/tmp/set.cfg", action = "set")
 
+        NOTE: When committing configuration with this script, please ensure that "chassis auto-image-upgrade" is in the configuration, otherwise "Auto Image Upgrade" process will exit and mark the script as a failure.
         """
         try:
             cfg_string
             url
         except Exception as err:
-            print "Error: load_config needs either 'cfg_string' or 'url' defined: %r" % err
+            errmsg = "Error: load_config needs either 'cfg_string' or 'url' defined: %r" % err
+            self.log(errmsg)
 
         if action == "set" or cfg_format == "set":
             action_string = ' action = "set" '
@@ -226,19 +254,13 @@ class CliConf():
             rpc_send = rpc_load_string
 
         try:
-            print rpc_send
             self.rpc(rpc_send)
         except Exception as err:
-            print "RPC Load Error: %r" % err
+            errmsg = "RPC Load Error: %r" % err
+            self.log(errmsg)
 
     def load_config_template(self, template, template_vars, cfg_format="text", action="merge"):
         """
-        Load Configuration from Jinja2 Template File
-        
-        NOTE: This function only supported on 14.1X53 onwards.
-        Not supported on 13.2X51-D25 from factory, so this method should
-        be deleted from switches booting this code.
-
         :template: A templated string using Jinja2 templates
         :template_vars: A dict containing the vars used in the :template: string
         :cfg_format: The type of configuration to load. The default is "text" or a standard Junos config block. Other options are: "set" for set style commands, "xml" for xml configs
@@ -260,22 +282,44 @@ class CliConf():
             dev.load_config_template(config_template, config_vars)
             dev.commit()
             dev.close()
+
+        NOTE: When committing configuration with this script, please ensure that "chassis auto-image-upgrade" is in the configuration, otherwise "Auto Image Upgrade" process will exit and mark the script as a failure.
         """
-        try:
-            new_template = Template(template)
-        except Exception as err:
-            print "Load_Template New Error: %r" % err
+        if JINJA_SUPPORT == True:
+            try:
+                new_template = Template(template)
+            except Exception as err:
+                errmsg = "Load_Template New Error: %r" % err
+                self.log(errmsg)
+
+            try:
+                final_template = new_template.render(template_vars)
+            except Exception as err:
+                errmsg = "Load_Template Render Error: %r" % err
+                self.log(errmsg)
+
+            try:
+                self.load_config(cfg_string=final_template, cfg_format=cfg_format,  action=action)
+            except Exception as err:
+                errmsg = "RPC Load_Template Send Error: %r" % err
+                self.log(errmsg)
+        else:
+            self.log("Jinja2 Template supported on this software version. First support Junos 14.1X53")
+
+    def log(self, msg):
+        """
+        Basic logging function for use by script.
+        """
+        logfile = self.logfile
+        log_time = self.time()
+
+        if self.debug == True:
+            print(str(log_time) + ": " + str(msg) + "\n")
 
         try:
-            final_template = new_template.render(template_vars)
-            print final_template
+            logfile.write(str(log_time) + ": " + str(msg) + "\n")
         except Exception as err:
-            print "Load_Template Render Error: %r" % err
-
-        try:
-            self.load_config(cfg_string=final_template, cfg_format=cfg_format,  action=action)
-        except Exception as err:
-            print "RPC Load_Template Send Error: %r" % err
+            print "Error logging to file: %r" % err
 
     def reboot(self):
         """
@@ -291,7 +335,8 @@ class CliConf():
         try:
             self.rpc(rpc_reboot)
         except Exception as err:
-            print "RPC Reboot Error: %r" % err
+            errmsg = "RPC Reboot Error: %r" % err
+            self.log(errmsg)
 
     def rpc(self, rpc):
         """
@@ -304,14 +349,16 @@ class CliConf():
 
         """
 
-        # TODO: Need to implement code to catch <rpc-reply> and basic checks
-
         try:
-            self.session = subprocess.Popen(['/usr/sbin/cli', 'xml-mode', 'netconf'], stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+            log_string = "RPC Data Sent to host:\n %r" % rpc
+            self.log(log_string)
+            self.session.stdin.write(rpc)
         except Exception as err:
-            print "RPC Session Error: %r \n\t Are you on Junos?\n" % err
+            errmsg = "RPC Communication Error: %r" % err
+            self.log(errmsg)
 
-        try:
-            self.session.communicate(rpc)
-        except Exception as err:
-            print "RPC Communication Error: %r" % err\
+    def time(self):
+        """
+        Basic Time Function for log function use.
+        """
+        return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
